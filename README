@@ -1,0 +1,7 @@
+Simple clone of Tetris on Odin using Raylib
+
+TODO:
+1. Add more tetrominos
+2. Implement simple collision
+3. Score system
+4. Core logic of game
