@@ -14,6 +14,8 @@ fall_interval: f32 : 0.4
 
 has_active_tetramino: bool = false
 current_tetramino: Tetromino
+ttype: TetrominoType
+previous_ttype: TetrominoType
 
 Vector2i :: struct {
 	x: i32,
@@ -51,7 +53,16 @@ init_grid :: proc() {
 }
 
 generate_random_tetramino :: proc() -> Tetromino {
-	ttype: TetrominoType = rand.choice_enum(TetrominoType)
+	if previous_ttype == nil {
+		ttype = rand.choice_enum(TetrominoType)
+	}
+	for {
+		ttype = rand.choice_enum(TetrominoType)
+		if ttype != previous_ttype {
+			break
+		} else {continue}
+	}
+	previous_ttype = ttype
 	has_active_tetramino = true
 	return create_tetromino(ttype)
 }
@@ -159,28 +170,35 @@ can_move_sideways :: proc(t: ^Tetromino, offset_x: i32) -> bool {
 }
 
 clear_occupied_lines :: proc() {
-	for y: i32 = GRID_HEIGHT - 2; y >= 0; y -= 1 {
-		empty_line: i32
-		is_line_full := true
-		for x in 0 ..< GRID_WIDTH {
-			if !(grid[x][y].occupied) {
-				is_line_full = false
-				empty_line = y
-				return
-			}
-			if is_line_full {
-				copy_lines(y, empty_line)
+	write_row: i32 = GRID_HEIGHT - 1
 
+	for read_row := GRID_HEIGHT - 1; read_row >= 0; read_row -= 1 {
+		is_line_full: bool = true
+		for x in 0 ..< GRID_WIDTH {
+			if !(grid[x][read_row].occupied) {
+				is_line_full = false
+				break
 			}
+		}
+		if !is_line_full {
+			copy_line(read_row, write_row)
+			write_row -= 1
+		}
+	}
+	for y in 0 ..< write_row {
+		for x in 0 ..< GRID_WIDTH {
+			grid[x][y].occupied = false
+			grid[x][y].color = rl.DARKGRAY
 		}
 	}
 }
 
-copy_lines :: proc(read, write: i32) {
+copy_line :: proc(from_y, to_y: i32) {
+	if from_y == to_y {
+		return
+	}
 	for x in 0 ..< GRID_WIDTH {
-		grid[x][read] = grid[x][write]
-		grid[x][write].occupied = false
-		grid[x][write].color = rl.DARKGRAY
+		grid[x][to_y] = grid[x][from_y]
 	}
 }
 
@@ -199,6 +217,22 @@ handle_input :: proc(t: ^Tetromino) {
 		restart_game()
 	}
 }
+
+
+/* TODO: 
+handle_death :: proc(t: Tetromino) {
+	for b in t.blocks {
+		gx: i32 = b.x + t.position.x
+		gy: i32 = b.y + t.position.y
+
+		if gy >= 0 {
+			if grid[gx][gy].occupied {
+				restart_game()
+			}
+		}
+	}
+}  
+*/
 
 restart_game :: proc() {
 	for y in 0 ..< GRID_HEIGHT {
@@ -233,6 +267,7 @@ main :: proc() {
 		rl.ClearBackground(rl.BLACK)
 
 		handle_input(&current_tetramino)
+		// handle_death(current_tetramino)
 		draw_grid()
 		draw_tetramino(current_tetramino)
 	}
