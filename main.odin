@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import "core:math/rand"
 import rl "vendor:raylib"
 
@@ -9,9 +10,8 @@ CELL_SIZE: i32 : 32
 
 grid: [GRID_WIDTH][GRID_HEIGHT]GridCell
 fall_timer: f32 = 0.0
-fall_interval: f32 : 0.1
+fall_interval: f32 : 0.4
 
-line_occupied: bool
 has_active_tetramino: bool = false
 current_tetramino: Tetromino
 
@@ -135,7 +135,7 @@ move_tetramino_down :: proc(t: ^Tetromino) {
 			t.position.y += 1
 		} else {
 			tetramino_to_grid(t)
-			check_and_clear_line(t)
+			clear_occupied_lines()
 		}
 	}
 }
@@ -143,7 +143,7 @@ move_tetramino_down :: proc(t: ^Tetromino) {
 can_move_sideways :: proc(t: ^Tetromino, offset_x: i32) -> bool {
 	for b in t.blocks {
 		gx: i32 = b.x + t.position.x + offset_x
-		gy: i32 = b.y + t.position.x
+		gy: i32 = b.y + t.position.y
 
 		if gx < 0 || gx >= GRID_WIDTH {
 			return false
@@ -158,18 +158,29 @@ can_move_sideways :: proc(t: ^Tetromino, offset_x: i32) -> bool {
 	return true
 }
 
-check_and_clear_line :: proc(t: ^Tetromino) {
-	for b in t.blocks {
-		gy: i32 = b.y + t.position.y
+clear_occupied_lines :: proc() {
+	for y: i32 = GRID_HEIGHT - 2; y >= 0; y -= 1 {
+		empty_line: i32
+		is_line_full := true
 		for x in 0 ..< GRID_WIDTH {
-			if !(grid[x][gy].occupied) {
+			if !(grid[x][y].occupied) {
+				is_line_full = false
+				empty_line = y
 				return
-			} else {
-				for x in 0 ..< GRID_WIDTH {
-					grid[x][gy].occupied = false
-				}
+			}
+			if is_line_full {
+				copy_lines(y, empty_line)
+
 			}
 		}
+	}
+}
+
+copy_lines :: proc(read, write: i32) {
+	for x in 0 ..< GRID_WIDTH {
+		grid[x][read] = grid[x][write]
+		grid[x][write].occupied = false
+		grid[x][write].color = rl.DARKGRAY
 	}
 }
 
@@ -182,6 +193,19 @@ handle_input :: proc(t: ^Tetromino) {
 	if rl.IsKeyPressed(rl.KeyboardKey.D) {
 		if can_move_sideways(t, 1) {
 			t.position.x += 1
+		}
+	}
+	if rl.IsKeyPressed(rl.KeyboardKey.R) {
+		restart_game()
+	}
+}
+
+restart_game :: proc() {
+	for y in 0 ..< GRID_HEIGHT {
+		for x in 0 ..< GRID_WIDTH {
+			grid[x][y].occupied = false
+			grid[x][y].color = rl.DARKGRAY
+			has_active_tetramino = false
 		}
 	}
 }
@@ -201,7 +225,7 @@ main :: proc() {
 			current_tetramino = generate_random_tetramino()
 		}
 
-		if fall_timer > 1.0 {
+		if fall_timer > fall_interval {
 			fall_timer = 0.0
 			move_tetramino_down(&current_tetramino)
 		}
