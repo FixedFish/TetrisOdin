@@ -12,10 +12,13 @@ grid: [GRID_WIDTH][GRID_HEIGHT]GridCell
 fall_timer: f32 = 0.0
 fall_interval: f32 : 0.4
 
-has_active_tetramino: bool = false
-current_tetramino: Tetromino
+has_active_tetromino: bool = false
+current_tetromino: Tetromino
 ttype: TetrominoType
 previous_ttype: TetrominoType
+
+tetromino_bag: [7]TetrominoType
+bag_index: int = 7
 
 Vector2i :: struct {
 	x: i32,
@@ -52,19 +55,15 @@ init_grid :: proc() {
 	}
 }
 
-generate_random_tetramino :: proc() -> Tetromino {
-	if previous_ttype == nil {
-		ttype = rand.choice_enum(TetrominoType)
+generate_random_tetromino :: proc() -> Tetromino {
+	if bag_index >= len(tetromino_bag) {
+		fill_and_shuffle_bag()
 	}
-	for {
-		ttype = rand.choice_enum(TetrominoType)
-		if ttype != previous_ttype {
-			break
-		} else {continue}
-	}
-	previous_ttype = ttype
-	has_active_tetramino = true
-	return create_tetromino(ttype)
+
+	new_ttype: TetrominoType = tetromino_bag[bag_index]
+	bag_index += 1
+	has_active_tetromino = true
+	return create_tetromino(new_ttype)
 }
 
 create_tetromino :: proc(ttype: TetrominoType) -> Tetromino {
@@ -87,7 +86,7 @@ create_tetromino :: proc(ttype: TetrominoType) -> Tetromino {
 		t.color = rl.LIME
 	case .J:
 		t.blocks = {{-1, 0}, {0, 0}, {0, -1}, {0, -2}}
-		t.color = rl.PINK
+		t.color = rl.VIOLET
 	case .L:
 		t.blocks = {{0, 0}, {1, 0}, {0, -1}, {0, -2}}
 		t.color = rl.ORANGE
@@ -106,8 +105,8 @@ draw_grid :: proc() {
 	}
 }
 
-draw_tetramino :: proc(t: Tetromino) {
-	if has_active_tetramino {
+draw_tetromino :: proc(t: Tetromino) {
+	if has_active_tetromino {
 		for b in t.blocks {
 			px: i32 = (t.position.x + b.x) * CELL_SIZE
 			py: i32 = (t.position.y + b.y) * CELL_SIZE
@@ -116,7 +115,7 @@ draw_tetramino :: proc(t: Tetromino) {
 	}
 }
 
-tetramino_to_grid :: proc(t: ^Tetromino) {
+tetromino_to_grid :: proc(t: ^Tetromino) {
 	for b in t.blocks {
 		x: i32 = b.x + t.position.x
 		y: i32 = b.y + t.position.y
@@ -125,7 +124,7 @@ tetramino_to_grid :: proc(t: ^Tetromino) {
 			grid[x][y].color = t.color
 		}
 	}
-	has_active_tetramino = false
+	has_active_tetromino = false
 }
 
 can_move_down :: proc(t: ^Tetromino) -> bool {
@@ -140,12 +139,12 @@ can_move_down :: proc(t: ^Tetromino) -> bool {
 	return true
 }
 
-move_tetramino_down :: proc(t: ^Tetromino) {
-	if has_active_tetramino {
+move_tetromino_down :: proc(t: ^Tetromino) {
+	if has_active_tetromino {
 		if can_move_down(t) {
 			t.position.y += 1
 		} else {
-			tetramino_to_grid(t)
+			tetromino_to_grid(t)
 			clear_occupied_lines()
 		}
 	}
@@ -216,6 +215,9 @@ handle_input :: proc(t: ^Tetromino) {
 	if rl.IsKeyPressed(rl.KeyboardKey.R) {
 		restart_game()
 	}
+	if rl.IsKeyPressed(rl.KeyboardKey.W) {
+		rotate_tetromino(t)
+	}
 }
 
 
@@ -234,12 +236,30 @@ handle_death :: proc(t: Tetromino) {
 }  
 */
 
+fill_and_shuffle_bag :: proc() {
+	figures: [7]TetrominoType = {.I, .O, .T, .S, .Z, .J, .L}
+	for i in 0 ..< len(figures) {
+		tetromino_bag[i] = figures[i]
+	}
+	rand.shuffle(tetromino_bag[:])
+	bag_index = 0
+}
+
+rotate_tetromino :: proc(t: ^Tetromino) {
+	for &b in t.blocks {
+		old_x := b.x
+		old_y := b.y
+		b.x = old_y
+		b.y = -old_x
+	}
+}
+
 restart_game :: proc() {
 	for y in 0 ..< GRID_HEIGHT {
 		for x in 0 ..< GRID_WIDTH {
 			grid[x][y].occupied = false
 			grid[x][y].color = rl.DARKGRAY
-			has_active_tetramino = false
+			has_active_tetromino = false
 		}
 	}
 }
@@ -255,20 +275,20 @@ main :: proc() {
 		dt := rl.GetFrameTime()
 		fall_timer += dt
 
-		if !(has_active_tetramino) {
-			current_tetramino = generate_random_tetramino()
+		if !(has_active_tetromino) {
+			current_tetromino = generate_random_tetromino()
 		}
 
 		if fall_timer > fall_interval {
 			fall_timer = 0.0
-			move_tetramino_down(&current_tetramino)
+			move_tetromino_down(&current_tetromino)
 		}
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.BLACK)
 
-		handle_input(&current_tetramino)
-		// handle_death(current_tetramino)
+		handle_input(&current_tetromino)
+		// handle_death(current_tetromino)
 		draw_grid()
-		draw_tetramino(current_tetramino)
+		draw_tetromino(current_tetromino)
 	}
 }
