@@ -84,7 +84,6 @@ create_tetromino :: proc(ttype: TetrominoType) -> Tetromino {
 	}
 	t.position = {3, 0}
 	fmt.print(t.position)
-	fmt.print(t.blocks)
 	return t
 }
 
@@ -145,8 +144,6 @@ main :: proc() {
 	rl.SetTargetFPS(60)
 
 	init_grid()
-	current_tetramino = generate_random_tetramino()
-	has_active_tetramino = true
 	for !rl.WindowShouldClose() {
 		defer rl.EndDrawing()
 		dt := rl.GetFrameTime()
