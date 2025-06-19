@@ -1,6 +1,5 @@
 package main
 
-import "core:fmt"
 import "core:math/rand"
 import rl "vendor:raylib"
 
@@ -10,8 +9,9 @@ CELL_SIZE: i32 : 32
 
 grid: [GRID_WIDTH][GRID_HEIGHT]GridCell
 fall_timer: f32 = 0.0
-fall_interval: f32 : 0.5
+fall_interval: f32 : 0.1
 
+line_occupied: bool
 has_active_tetramino: bool = false
 current_tetramino: Tetromino
 
@@ -26,7 +26,7 @@ GridCell :: struct {
 }
 
 Tetromino :: struct {
-	blocks:   []Vector2i,
+	blocks:   [4]Vector2i,
 	position: Vector2i,
 	color:    rl.Color,
 }
@@ -52,12 +52,11 @@ init_grid :: proc() {
 
 generate_random_tetramino :: proc() -> Tetromino {
 	ttype: TetrominoType = rand.choice_enum(TetrominoType)
-	fmt.print(ttype)
+	has_active_tetramino = true
 	return create_tetromino(ttype)
 }
 
 create_tetromino :: proc(ttype: TetrominoType) -> Tetromino {
-	has_active_tetramino = true
 	t: Tetromino
 	switch ttype {
 	case .I:
@@ -83,8 +82,6 @@ create_tetromino :: proc(ttype: TetrominoType) -> Tetromino {
 		t.color = rl.ORANGE
 	}
 	t.position = {3, 0}
-	fmt.print(t.position)
-	fmt.print(t.blocks)
 	return t
 }
 
@@ -112,11 +109,12 @@ tetramino_to_grid :: proc(t: ^Tetromino) {
 	for b in t.blocks {
 		x: i32 = b.x + t.position.x
 		y: i32 = b.y + t.position.y
-		fmt.print("x: {}, y: {}\n", x, y)
-		grid[x][y].occupied = true
+		if y >= 0 && y < GRID_HEIGHT && x >= 0 && x < GRID_WIDTH {
+			grid[x][y].occupied = true
+			grid[x][y].color = t.color
+		}
 	}
 	has_active_tetramino = false
-	fmt.print("Tetramino succesfuly locked on grid")
 }
 
 can_move_down :: proc(t: ^Tetromino) -> bool {
@@ -124,7 +122,9 @@ can_move_down :: proc(t: ^Tetromino) -> bool {
 		gx: i32 = b.x + t.position.x
 		gy: i32 = b.y + t.position.y + 1
 
-		if (gy >= GRID_HEIGHT - 5) || (grid[gx][gy].occupied) {return false}
+		if gy >= 0 && (gy >= GRID_HEIGHT || grid[gx][gy].occupied) {
+			return false
+		}
 	}
 	return true
 }
@@ -135,6 +135,53 @@ move_tetramino_down :: proc(t: ^Tetromino) {
 			t.position.y += 1
 		} else {
 			tetramino_to_grid(t)
+			check_and_clear_line(t)
+		}
+	}
+}
+
+can_move_sideways :: proc(t: ^Tetromino, offset_x: i32) -> bool {
+	for b in t.blocks {
+		gx: i32 = b.x + t.position.x + offset_x
+		gy: i32 = b.y + t.position.x
+
+		if gx < 0 || gx >= GRID_WIDTH {
+			return false
+		}
+
+		if gy >= 0 && gy < GRID_HEIGHT {
+			if grid[gx][gy].occupied {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+check_and_clear_line :: proc(t: ^Tetromino) {
+	for b in t.blocks {
+		gy: i32 = b.y + t.position.y
+		for x in 0 ..< GRID_WIDTH {
+			if !(grid[x][gy].occupied) {
+				return
+			} else {
+				for x in 0 ..< GRID_WIDTH {
+					grid[x][gy].occupied = false
+				}
+			}
+		}
+	}
+}
+
+handle_input :: proc(t: ^Tetromino) {
+	if rl.IsKeyPressed(rl.KeyboardKey.A) {
+		if can_move_sideways(t, -1) {
+			t.position.x -= 1
+		}
+	}
+	if rl.IsKeyPressed(rl.KeyboardKey.D) {
+		if can_move_sideways(t, 1) {
+			t.position.x += 1
 		}
 	}
 }
@@ -145,8 +192,6 @@ main :: proc() {
 	rl.SetTargetFPS(60)
 
 	init_grid()
-	current_tetramino = generate_random_tetramino()
-	has_active_tetramino = true
 	for !rl.WindowShouldClose() {
 		defer rl.EndDrawing()
 		dt := rl.GetFrameTime()
@@ -163,6 +208,7 @@ main :: proc() {
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.BLACK)
 
+		handle_input(&current_tetramino)
 		draw_grid()
 		draw_tetramino(current_tetramino)
 	}
