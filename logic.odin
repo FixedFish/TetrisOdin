@@ -1,24 +1,27 @@
 package main
 
+import "core:fmt"
 import "core:math/rand"
 import rl "vendor:raylib"
 
 // 320x640 resolution
-GRID_WIDTH: i32 : 20
-GRID_HEIGHT: i32 : 10
+GRID_WIDTH: i32 : 10
+GRID_HEIGHT: i32 : 20
 CELL_SIZE: i32 : 32
 
 FALL_INTERVAL: f32 = 0.4
-FALL_TIMER: f32 = 0.0
 
 Game :: struct {
 	grid:                 [GRID_WIDTH][GRID_HEIGHT]GridCell,
 	has_active_tetromino: bool,
-	current_tetromino:    ^Tetromino,
+	current_tetromino:    Tetromino,
 	next_tetromino:       Tetromino,
 	tetromino_bag:        [7]TetrominoType,
 	bag_index:            i32,
+	fall_timer:           f32,
 }
+
+can: bool
 
 GameState :: struct {
 }
@@ -71,7 +74,7 @@ generate_random_tetromino :: proc(game: ^Game) {
 	}
 }
 
-create_tetromino :: proc(ttype: TetrominoType, game: ^Game) -> Tetromino {
+create_tetromino :: proc(ttype: TetrominoType, game: ^Game) {
 	t: Tetromino
 	switch ttype {
 	case .I:
@@ -96,13 +99,14 @@ create_tetromino :: proc(ttype: TetrominoType, game: ^Game) -> Tetromino {
 		t.blocks = {{0, 0}, {1, 0}, {0, -1}, {0, -2}}
 		t.color = rl.ORANGE
 	}
-	t.position = {3, 0}
+	t.position = {5, 0}
 	game.has_active_tetromino = true
-	game.current_tetromino = &t
-	return t
+	game.current_tetromino = t
+	print_absolute_position(game)
 }
 
-tetromino_to_grid :: proc(t: ^Tetromino, game: ^Game) {
+tetromino_to_grid :: proc(game: ^Game) {
+	t: Tetromino = game.current_tetromino
 	for b in t.blocks {
 		gx: i32 = t.position.x + b.x
 		gy: i32 = t.position.y + b.y
@@ -114,19 +118,29 @@ tetromino_to_grid :: proc(t: ^Tetromino, game: ^Game) {
 	game.has_active_tetromino = false
 }
 
-move_tetramino :: proc(game: ^Game, delta: f32) {
-	t: ^Tetromino = game^.current_tetromino
-	FALL_TIMER += delta
-	if FALL_TIMER >= FALL_INTERVAL {
-		t.position.y += 1
-		FALL_TIMER = 0
+// TODO: Rewrite this, add collision check
+tetromino_fall :: proc(game: ^Game, delta: f32) {
+	game.fall_timer += delta
+	if game.fall_timer >= FALL_INTERVAL {
+		game.current_tetromino.position.y += 1
+		game.fall_timer = 0
+	}
+	if game.current_tetromino.position.y >= GRID_HEIGHT - 1 {
+		tetromino_to_grid(game)
 	}
 }
 
 /* Helper functions */
-can_move :: proc() {}
+can_move :: proc(game: ^Game) {}
 
-is_valid_position :: proc() {}
+is_valid_position :: proc(game: ^Game, x, y: i32) -> bool {
+	if x < 0 || x >= GRID_WIDTH {return false}
+	if y >= GRID_HEIGHT {return false}
+
+	if y < 0 {return true}
+
+	return !game.grid[x][y].occupied
+}
 
 
 fill_and_shuffle_bag :: proc(game: ^Game) {
@@ -137,4 +151,13 @@ fill_and_shuffle_bag :: proc(game: ^Game) {
 
 	rand.shuffle(game.tetromino_bag[:])
 	game.bag_index = 0
+}
+
+print_absolute_position :: proc(game: ^Game) {
+	t: Tetromino = game.current_tetromino
+	for b in t.blocks {
+		gx: i32 = t.position.x + b.x
+		gy: i32 = t.position.y + b.y
+		fmt.println("X: {}, Y: {}", gx, gy)
+	}
 }

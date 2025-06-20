@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import rl "vendor:raylib"
 /* Grid Render */
 draw_grid :: proc(game: ^Game) {
@@ -13,6 +14,7 @@ draw_grid :: proc(game: ^Game) {
 }
 
 draw_tetromino :: proc(game: ^Game) {
+	if !game.has_active_tetromino {return}
 	t: Tetromino = game.current_tetromino
 	for b in t.blocks {
 		gx: i32 = (t.position.x + b.x) * CELL_SIZE

@@ -4,18 +4,31 @@ import rl "vendor:raylib"
 
 main :: proc() {
 	defer rl.CloseWindow()
-	rl.InitWindow(320, 640, "TETRIS")
+	rl.InitWindow(GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE, "TETRIS")
 	rl.SetTargetFPS(60)
+
+	game: Game
+	init_grid(&game)
+	fill_and_shuffle_bag(&game)
 
 	for !(rl.WindowShouldClose()) {
 		defer rl.EndDrawing()
-		game: Game = Game{}
-		init_grid(&game)
 
 		rl.BeginDrawing()
-		enerate_random_tetromino(&game)
-		move_tetramino(&game, rl.GetFrameTime())
+		rl.ClearBackground(rl.RAYWHITE)
+		handle_input(&game)
+		generate_random_tetromino(&game)
+		tetromino_fall(&game, rl.GetFrameTime())
 		draw_grid(&game)
 		draw_tetromino(&game)
 	}
 }
+
+handle_input :: proc(game: ^Game) {{
+		if rl.IsKeyPressed(rl.KeyboardKey.A) {
+			game.current_tetromino.position.x -= 1
+		}
+		if rl.IsKeyPressed(rl.KeyboardKey.D) {
+			game.current_tetromino.position.x += 1
+		}
+	}}
