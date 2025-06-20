@@ -21,8 +21,6 @@ Game :: struct {
 	fall_timer:           f32,
 }
 
-can: bool
-
 GameState :: struct {
 }
 
@@ -99,7 +97,7 @@ create_tetromino :: proc(ttype: TetrominoType, game: ^Game) {
 		t.blocks = {{0, 0}, {1, 0}, {0, -1}, {0, -2}}
 		t.color = rl.ORANGE
 	}
-	t.position = {5, 0}
+	t.position = {GRID_WIDTH / 2, 0}
 	game.has_active_tetromino = true
 	game.current_tetromino = t
 	print_absolute_position(game)
@@ -118,30 +116,52 @@ tetromino_to_grid :: proc(game: ^Game) {
 	game.has_active_tetromino = false
 }
 
-// TODO: Rewrite this, add collision check
 tetromino_fall :: proc(game: ^Game, delta: f32) {
 	game.fall_timer += delta
-	if game.fall_timer >= FALL_INTERVAL {
+	if game.fall_timer < FALL_INTERVAL {return}
+	game.fall_timer = 0
+
+	if can_move(game, 0, 1) {
 		game.current_tetromino.position.y += 1
-		game.fall_timer = 0
-	}
-	if game.current_tetromino.position.y >= GRID_HEIGHT - 1 {
+	} else {
 		tetromino_to_grid(game)
 	}
 }
 
+/* Input logic */
+
+
 /* Helper functions */
-can_move :: proc(game: ^Game) {}
+can_move :: proc(game: ^Game, offset_x, offset_y: i32) -> bool {
+	ghost_tetromino := game.current_tetromino
+	ghost_tetromino.position.x += offset_x
+	ghost_tetromino.position.y += offset_y
 
-is_valid_position :: proc(game: ^Game, x, y: i32) -> bool {
-	if x < 0 || x >= GRID_WIDTH {return false}
-	if y >= GRID_HEIGHT {return false}
-
-	if y < 0 {return true}
-
-	return !game.grid[x][y].occupied
+	if is_valid_state(game, ghost_tetromino) {return true} else {return false}
 }
 
+is_valid_grid_pos :: proc(game: ^Game, pos: Vector2i) -> bool {
+	if pos.x < 0 || pos.x >= GRID_WIDTH {return false}
+	if pos.y >= GRID_HEIGHT {return false}
+
+	if pos.y < 0 {return true}
+
+	return !game.grid[pos.x][pos.y].occupied
+}
+
+is_valid_state :: proc(game: ^Game, t: Tetromino) -> bool {
+	for b in t.blocks {
+		absolute_pos: Vector2i = Vector2i {
+			x = t.position.x + b.x,
+			y = t.position.y + b.y,
+		}
+
+		if !is_valid_grid_pos(game, absolute_pos) {
+			return false
+		}
+	}
+	return true
+}
 
 fill_and_shuffle_bag :: proc(game: ^Game) {
 	figures: [7]TetrominoType = {.I, .O, .T, .S, .Z, .J, .L}

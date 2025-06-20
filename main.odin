@@ -18,9 +18,9 @@ main :: proc() {
 		rl.ClearBackground(rl.RAYWHITE)
 		handle_input(&game)
 		generate_random_tetromino(&game)
-		tetromino_fall(&game, rl.GetFrameTime())
 		draw_grid(&game)
 		draw_tetromino(&game)
+		tetromino_fall(&game, rl.GetFrameTime())
 	}
 }
 
