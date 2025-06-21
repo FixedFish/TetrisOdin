@@ -9,7 +9,7 @@ GRID_WIDTH: i32 : 10
 GRID_HEIGHT: i32 : 20
 CELL_SIZE: i32 : 32
 
-FALL_INTERVAL: f32 = 0.4
+FALL_INTERVAL: f32 = 0.2
 
 Game :: struct {
 	grid:                 [GRID_WIDTH][GRID_HEIGHT]GridCell,
@@ -37,6 +37,15 @@ Tetromino :: struct {
 	blocks:   [4]Vector2i,
 	position: Vector2i,
 	color:    rl.Color,
+	state:    TetrominoState,
+	type:     TetrominoType,
+}
+
+TetrominoState :: enum {
+	SpawnState, // 0
+	Right, // R
+	Left, // L
+	Flip, // 2
 }
 
 TetrominoType :: enum {
@@ -99,6 +108,8 @@ create_tetromino :: proc(ttype: TetrominoType, game: ^Game) {
 	}
 	t.position = {GRID_WIDTH / 2, 0}
 	game.has_active_tetromino = true
+	game.current_tetromino.type = ttype
+	game.current_tetromino.state = .SpawnState
 	game.current_tetromino = t
 	print_absolute_position(game)
 }
@@ -125,11 +136,23 @@ tetromino_fall :: proc(game: ^Game, delta: f32) {
 		game.current_tetromino.position.y += 1
 	} else {
 		tetromino_to_grid(game)
+		check_and_clean_lines(game)
 	}
 }
 
 /* Input logic */
-
+handle_input :: proc(game: ^Game) {
+	if rl.IsKeyPressed(rl.KeyboardKey.A) {
+		if can_move(game, -1, 0) {
+			game.current_tetromino.position.x -= 1
+		}
+	}
+	if rl.IsKeyPressed(rl.KeyboardKey.D) {
+		if can_move(game, 1, 0) {
+			game.current_tetromino.position.x += 1
+		}
+	}
+}
 
 /* Helper functions */
 can_move :: proc(game: ^Game, offset_x, offset_y: i32) -> bool {
@@ -161,6 +184,54 @@ is_valid_state :: proc(game: ^Game, t: Tetromino) -> bool {
 		}
 	}
 	return true
+}
+
+check_and_clean_lines :: proc(game: ^Game) {
+	for y in 0 ..< GRID_HEIGHT {
+		if is_line_full(game, y) {
+			clean_line(game, y)
+			move_empty_lines_down(game)
+		}
+	}
+}
+
+clean_line :: proc(game: ^Game, line: i32) {
+	for x in 0 ..< GRID_WIDTH {
+		game.grid[x][line].occupied = false
+	}
+}
+
+move_empty_lines_down :: proc(game: ^Game) {
+	write_y := GRID_HEIGHT - 1
+
+	for read_y := GRID_HEIGHT - 1; read_y >= 0; read_y -= 1 {
+		if is_line_full(game, read_y) {
+			copy_line(game, write_y, read_y)
+			write_y -= 1
+		}
+	}
+	for y := write_y; y >= 0; y -= 1 {
+		clean_line(game, y)
+	}
+}
+
+
+is_line_full :: proc(game: ^Game, line: i32) -> bool {
+	grid := game.grid
+	for x in 0 ..< GRID_WIDTH {
+		if !(grid[x][line].occupied) {
+			return false
+		}
+	}
+	return true
+}
+
+copy_line :: proc(game: ^Game, dst_y, src_y: i32) {
+	if dst_y == src_y {return}
+
+	for x in 0 ..< GRID_WIDTH {
+		game.grid[x][dst_y] = game.grid[x][src_y]
+	}
 }
 
 fill_and_shuffle_bag :: proc(game: ^Game) {

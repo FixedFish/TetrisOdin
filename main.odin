@@ -18,17 +18,8 @@ main :: proc() {
 		rl.ClearBackground(rl.RAYWHITE)
 		handle_input(&game)
 		generate_random_tetromino(&game)
+		tetromino_fall(&game, rl.GetFrameTime())
 		draw_grid(&game)
 		draw_tetromino(&game)
-		tetromino_fall(&game, rl.GetFrameTime())
 	}
 }
-
-handle_input :: proc(game: ^Game) {{
-		if rl.IsKeyPressed(rl.KeyboardKey.A) {
-			game.current_tetromino.position.x -= 1
-		}
-		if rl.IsKeyPressed(rl.KeyboardKey.D) {
-			game.current_tetromino.position.x += 1
-		}
-	}}
