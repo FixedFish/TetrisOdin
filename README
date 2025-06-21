@@ -3,10 +3,13 @@ Simple clone of Tetris on Odin using Raylib
 Movement:
 A - left
 D - right
-W - rotate
+W - rotate clockwise
+S - rotate counterclockwise
 R - restart
+
+Implemented:
+Super Rotated System
 
 TODO:
 1. Score System
 2. Death
-3. Super Rotate System
