@@ -9,7 +9,7 @@ GRID_WIDTH: i32 : 10
 GRID_HEIGHT: i32 : 20
 CELL_SIZE: i32 : 32
 
-FALL_INTERVAL: f32 = 0.2
+FALL_INTERVAL: f32 = 0.5
 
 Game :: struct {
 	grid:                 [GRID_WIDTH][GRID_HEIGHT]GridCell,
@@ -42,7 +42,7 @@ Tetromino :: struct {
 }
 
 TetrominoState :: enum {
-	SpawnState, // 0
+	Spawn, // 0
 	Right, // R
 	Left, // L
 	Flip, // 2
@@ -57,6 +57,45 @@ TetrominoType :: enum {
 	J,
 	L,
 }
+
+JLSTZ_WALL_KICK_DATA: [8][5]Vector2i = {
+	// Spawn -> Right
+	{{0, 0}, {-1, 0}, {-1, -1}, {0, 2}, {-1, 2}},
+	// Right -> Spawn 
+	{{0, 0}, {1, 0}, {1, 1}, {0, -2}, {1, -2}},
+	// Right -> Flip
+	{{0, 0}, {1, 0}, {1, 1}, {0, -2}, {1, -2}},
+	// Flip -> Right
+	{{0, 0}, {-1, 0}, {-1, -1}, {0, 2}, {-1, 2}},
+	// Flip -> Left
+	{{0, 0}, {1, 0}, {1, -1}, {0, 2}, {1, 2}},
+	// Left -> Flip
+	{{0, 0}, {-1, 0}, {-1, 1}, {0, -2}, {-1, -2}},
+	// Left -> Spawn
+	{{0, 0}, {-1, 0}, {-1, 1}, {0, -2}, {-1, -2}},
+	// Spawn -> Left
+	{{0, 0}, {1, 0}, {1, -1}, {0, 2}, {1, 2}},
+}
+
+I_WALL_KICK_DATA: [8][5]Vector2i = {
+	// Spawn -> Right
+	{{0, 0}, {-2, 0}, {1, 0}, {-2, 1}, {1, -2}},
+	// Right -> Spawn
+	{{0, 0}, {2, 0}, {-1, 0}, {2, -1}, {-1, 2}},
+	// Right -> Flip
+	{{0, 0}, {-1, 0}, {2, 0}, {-1, -2}, {2, 1}},
+	// Flip -> Right
+	{{0, 0}, {1, 0}, {-2, 0}, {1, 2}, {-2, -1}},
+	// Flip -> Left
+	{{0, 0}, {2, 0}, {-1, 0}, {2, -1}, {-1, 2}},
+	// Left -> Flip
+	{{0, 0}, {-2, 0}, {1, 0}, {-2, 1}, {1, -2}},
+	// Left -> Spawn
+	{{0, 0}, {1, 0}, {-2, 0}, {1, 2}, {-2, -1}},
+	// Spawn -> Left
+	{{0, 0}, {-1, 0}, {2, 0}, {-1, -2}, {2, 1}},
+}
+
 
 /* Grid logic */
 init_grid :: proc(game: ^Game) {
@@ -107,11 +146,10 @@ create_tetromino :: proc(ttype: TetrominoType, game: ^Game) {
 		t.color = rl.ORANGE
 	}
 	t.position = {GRID_WIDTH / 2, 0}
+	t.type = ttype
+	t.state = .Spawn
 	game.has_active_tetromino = true
-	game.current_tetromino.type = ttype
-	game.current_tetromino.state = .SpawnState
 	game.current_tetromino = t
-	print_absolute_position(game)
 }
 
 tetromino_to_grid :: proc(game: ^Game) {
@@ -140,7 +178,78 @@ tetromino_fall :: proc(game: ^Game, delta: f32) {
 	}
 }
 
+rotate_tetromino :: proc(game: ^Game, clockwise: bool) {
+	if game.current_tetromino.type == .O {return}
+
+	from_state: TetrominoState = game.current_tetromino.state
+	to_state: TetrominoState
+	kick_index: i32
+
+	if clockwise {
+		to_state = TetrominoState(int(from_state) % 4)
+
+		switch from_state {
+		case .Spawn:
+			kick_index = 0
+		case .Right:
+			kick_index = 2
+		case .Left:
+			kick_index = 6
+		case .Flip:
+			kick_index = 4
+		}
+	} else {
+		to_state = TetrominoState(int(from_state) % 4)
+		switch from_state {
+		case .Spawn:
+			kick_index = 7
+		case .Right:
+			kick_index = 1
+		case .Left:
+			kick_index = 5
+		case .Flip:
+			kick_index = 3
+		}
+	}
+
+	kick_table: ^[8][5]Vector2i
+	if game.current_tetromino.type == .I {
+		kick_table = &I_WALL_KICK_DATA
+	} else {
+		kick_table = &JLSTZ_WALL_KICK_DATA
+	}
+
+	ghost_tetromino := game.current_tetromino
+	if clockwise {
+		for i in 0 ..< len(ghost_tetromino.blocks) {
+			old_x := ghost_tetromino.blocks[i].x
+			ghost_tetromino.blocks[i].x = ghost_tetromino.blocks[i].y
+			ghost_tetromino.blocks[i].y = -old_x
+		}
+	} else {
+		for i in 0 ..< len(ghost_tetromino.blocks) {
+			old_y := ghost_tetromino.blocks[i].y
+			ghost_tetromino.blocks[i].y = ghost_tetromino.blocks[i].x
+			ghost_tetromino.blocks[i].x = -old_y
+		}
+	}
+
+	for i in 0 ..< 5 {
+		offset := kick_table[kick_index][i]
+		ghost_tetromino.position.x += offset.x
+		ghost_tetromino.position.y += offset.y
+
+		if is_valid_state(game, ghost_tetromino) {
+			game.current_tetromino.blocks = ghost_tetromino.blocks
+			game.current_tetromino.position = ghost_tetromino.position
+			game.current_tetromino.state = to_state
+			return
+		}
+	}
+}
+
 /* Input logic */
+// TODO: Refactor needed
 handle_input :: proc(game: ^Game) {
 	if rl.IsKeyPressed(rl.KeyboardKey.A) {
 		if can_move(game, -1, 0) {
@@ -151,6 +260,12 @@ handle_input :: proc(game: ^Game) {
 		if can_move(game, 1, 0) {
 			game.current_tetromino.position.x += 1
 		}
+	}
+	if rl.IsKeyPressed(rl.KeyboardKey.W) {
+		rotate_tetromino(game, true)
+	}
+	if rl.IsKeyPressed(rl.KeyboardKey.S) {
+		rotate_tetromino(game, false)
 	}
 }
 
