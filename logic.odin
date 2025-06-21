@@ -42,7 +42,7 @@ Tetromino :: struct {
 }
 
 TetrominoState :: enum {
-	SpawnState, // 0
+	Spawn, // 0
 	Right, // R
 	Left, // L
 	Flip, // 2
@@ -57,6 +57,45 @@ TetrominoType :: enum {
 	J,
 	L,
 }
+
+JLSTZ_WALL_KICK_DATA: [8][5]Vector2i = {
+	// Spawn -> Right
+	{{0, 0}, {-1, 0}, {-1, -1}, {0, 2}, {-1, 2}},
+	// Right -> Spawn 
+	{{0, 0}, {1, 0}, {1, 1}, {0, -2}, {1, -2}},
+	// Right -> Flip
+	{{0, 0}, {1, 0}, {1, 1}, {0, -2}, {1, -2}},
+	// Flip -> Right
+	{{0, 0}, {-1, 0}, {-1, -1}, {0, 2}, {-1, 2}},
+	// Flip -> Left
+	{{0, 0}, {1, 0}, {1, -1}, {0, 2}, {1, 2}},
+	// Left -> Flip
+	{{0, 0}, {-1, 0}, {-1, 1}, {0, -2}, {-1, -2}},
+	// Left -> Spawn
+	{{0, 0}, {-1, 0}, {-1, 1}, {0, -2}, {-1, -2}},
+	// Spawn -> Left
+	{{0, 0}, {1, 0}, {1, -1}, {0, 2}, {1, 2}},
+}
+
+I_WALL_KICK_DATA: [8][5]Vector2i = {
+	// Spawn -> Right
+	{{0, 0}, {-2, 0}, {1, 0}, {-2, 1}, {1, -2}},
+	// Right -> Spawn
+	{{0, 0}, {2, 0}, {-1, 0}, {2, -1}, {-1, 2}},
+	// Right -> Flip
+	{{0, 0}, {-1, 0}, {2, 0}, {-1, -2}, {2, 1}},
+	// Flip -> Right
+	{{0, 0}, {1, 0}, {-2, 0}, {1, 2}, {-2, -1}},
+	// Flip -> Left
+	{{0, 0}, {2, 0}, {-1, 0}, {2, -1}, {-1, 2}},
+	// Left -> Flip
+	{{0, 0}, {-2, 0}, {1, 0}, {-2, 1}, {1, -2}},
+	// Left -> Spawn
+	{{0, 0}, {1, 0}, {-2, 0}, {1, 2}, {-2, -1}},
+	// Spawn -> Left
+	{{0, 0}, {-1, 0}, {2, 0}, {-1, -2}, {2, 1}},
+}
+
 
 /* Grid logic */
 init_grid :: proc(game: ^Game) {
@@ -107,11 +146,10 @@ create_tetromino :: proc(ttype: TetrominoType, game: ^Game) {
 		t.color = rl.ORANGE
 	}
 	t.position = {GRID_WIDTH / 2, 0}
+	t.type = ttype
+	t.state = .Spawn
 	game.has_active_tetromino = true
-	game.current_tetromino.type = ttype
-	game.current_tetromino.state = .SpawnState
 	game.current_tetromino = t
-	print_absolute_position(game)
 }
 
 tetromino_to_grid :: proc(game: ^Game) {
@@ -140,7 +178,24 @@ tetromino_fall :: proc(game: ^Game, delta: f32) {
 	}
 }
 
+rotate_tetromino :: proc(game: ^Game) {
+	if game.current_tetromino.type == .O {return}
+	ghost_tetromino: Tetromino = game.current_tetromino
+
+	for i in 0 ..< len(ghost_tetromino.blocks) {
+		old_x := ghost_tetromino.blocks[i].x
+		ghost_tetromino.blocks[i].x = ghost_tetromino.blocks[i].y
+		ghost_tetromino.blocks[i].y = -old_x
+	}
+
+	if is_valid_state(game, ghost_tetromino) {
+		game.current_tetromino.blocks = ghost_tetromino.blocks
+	}
+	// Implement SRS
+}
+
 /* Input logic */
+// TODO: Refactor needed
 handle_input :: proc(game: ^Game) {
 	if rl.IsKeyPressed(rl.KeyboardKey.A) {
 		if can_move(game, -1, 0) {
@@ -151,6 +206,9 @@ handle_input :: proc(game: ^Game) {
 		if can_move(game, 1, 0) {
 			game.current_tetromino.position.x += 1
 		}
+	}
+	if rl.IsKeyPressed(rl.KeyboardKey.W) {
+		rotate_tetromino(game)
 	}
 }
 
