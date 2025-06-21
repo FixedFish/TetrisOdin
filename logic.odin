@@ -187,11 +187,17 @@ is_valid_state :: proc(game: ^Game, t: Tetromino) -> bool {
 }
 
 check_and_clean_lines :: proc(game: ^Game) {
-	for y in 0 ..< GRID_HEIGHT {
-		if is_line_full(game, y) {
-			clean_line(game, y)
-			move_empty_lines_down(game)
+	write_y := GRID_HEIGHT - 1
+	for read_y := GRID_HEIGHT - 1; read_y >= 0; read_y -= 1 {
+		if !is_line_full(game, read_y) {
+			for x in 0 ..< GRID_WIDTH {
+				game.grid[x][write_y] = game.grid[x][read_y]
+			}
+			write_y -= 1
 		}
+	}
+	for y := write_y; y >= 0; y -= 1 {
+		clean_line(game, y)
 	}
 }
 
@@ -201,21 +207,6 @@ clean_line :: proc(game: ^Game, line: i32) {
 	}
 }
 
-move_empty_lines_down :: proc(game: ^Game) {
-	write_y := GRID_HEIGHT - 1
-
-	for read_y := GRID_HEIGHT - 1; read_y >= 0; read_y -= 1 {
-		if is_line_full(game, read_y) {
-			copy_line(game, write_y, read_y)
-			write_y -= 1
-		}
-	}
-	for y := write_y; y >= 0; y -= 1 {
-		clean_line(game, y)
-	}
-}
-
-
 is_line_full :: proc(game: ^Game, line: i32) -> bool {
 	grid := game.grid
 	for x in 0 ..< GRID_WIDTH {
@@ -224,14 +215,6 @@ is_line_full :: proc(game: ^Game, line: i32) -> bool {
 		}
 	}
 	return true
-}
-
-copy_line :: proc(game: ^Game, dst_y, src_y: i32) {
-	if dst_y == src_y {return}
-
-	for x in 0 ..< GRID_WIDTH {
-		game.grid[x][dst_y] = game.grid[x][src_y]
-	}
 }
 
 fill_and_shuffle_bag :: proc(game: ^Game) {
