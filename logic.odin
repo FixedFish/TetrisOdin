@@ -20,9 +20,12 @@ Game :: struct {
 	bag_index:            i32,
 	fall_timer:           f32,
 	current_score:        i32,
+	state:                GameState,
 }
 
-GameState :: struct {
+GameState :: enum {
+	Playing,
+	GameOver,
 }
 
 Vector2i :: struct {
@@ -119,6 +122,10 @@ generate_random_tetromino :: proc(game: ^Game) {
 }
 
 spawn_next_tetromino :: proc(game: ^Game) {
+	if !is_valid_grid_pos(game, game.next_tetromino.position) {
+		game.state = .GameOver
+		return
+	}
 	game.current_tetromino = game.next_tetromino
 	game.has_active_tetromino = true
 	generate_random_tetromino(game)
@@ -253,8 +260,11 @@ rotate_tetromino :: proc(game: ^Game, clockwise: bool) {
 lock_tetromino :: proc(game: ^Game) {
 	tetromino_to_grid(game)
 	check_and_clean_lines(game)
-	spawn_next_tetromino(game)
 	game.fall_timer = 0
+
+	if game.state == .Playing {
+		spawn_next_tetromino(game)
+	}
 }
 
 hard_drop_tetromino :: proc(game: ^Game) {
@@ -284,6 +294,9 @@ handle_input :: proc(game: ^Game) {
 	}
 	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
 		hard_drop_tetromino(game)
+	}
+	if rl.IsKeyPressed(rl.KeyboardKey.R) {
+		restart_game(game)
 	}
 }
 
@@ -373,6 +386,22 @@ fill_and_shuffle_bag :: proc(game: ^Game) {
 
 	rand.shuffle(game.tetromino_bag[:])
 	game.bag_index = 0
+}
+
+restart_game :: proc(game: ^Game) {
+	if game.state == .Playing {return}
+	init_grid(game)
+
+	game.state = .Playing
+	game.current_score = 0
+	game.has_active_tetromino = false
+	game.fall_timer = 0
+
+	fill_and_shuffle_bag(game)
+	game.bag_index = 0
+
+	generate_random_tetromino(game)
+	spawn_next_tetromino(game)
 }
 
 print_absolute_position :: proc(game: ^Game) {

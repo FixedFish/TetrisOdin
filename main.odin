@@ -11,6 +11,7 @@ main :: proc() {
 	ui_tex := rl.LoadRenderTexture(320, 160)
 
 	game: Game
+	game.state = .Playing
 	init_grid(&game)
 	fill_and_shuffle_bag(&game)
 
@@ -25,8 +26,10 @@ main :: proc() {
 		// Game
 		rl.BeginTextureMode(game_tex)
 		rl.ClearBackground(rl.RAYWHITE)
+		if game.state == .GameOver {
+			restart_game(&game)
+		}
 		handle_input(&game)
-		// generate_random_tetromino(&game)
 		tetromino_fall(&game, rl.GetFrameTime())
 		draw_grid(&game)
 		draw_ghost_tetromino(&game)
