@@ -14,6 +14,9 @@ main :: proc() {
 	init_grid(&game)
 	fill_and_shuffle_bag(&game)
 
+	generate_random_tetromino(&game)
+	spawn_next_tetromino(&game)
+
 	defer rl.UnloadRenderTexture(game_tex)
 	defer rl.UnloadRenderTexture(ui_tex)
 
@@ -23,7 +26,7 @@ main :: proc() {
 		rl.BeginTextureMode(game_tex)
 		rl.ClearBackground(rl.RAYWHITE)
 		handle_input(&game)
-		generate_random_tetromino(&game)
+		// generate_random_tetromino(&game)
 		tetromino_fall(&game, rl.GetFrameTime())
 		draw_grid(&game)
 		draw_ghost_tetromino(&game)

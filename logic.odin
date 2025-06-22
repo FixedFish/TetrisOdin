@@ -111,14 +111,20 @@ init_grid :: proc(game: ^Game) {
 /* Tetromino logic */
 
 generate_random_tetromino :: proc(game: ^Game) {
-	if game.has_active_tetromino {return}
 	if game.bag_index >= len(game.tetromino_bag) {fill_and_shuffle_bag(game)}
+
 	new_ttype: TetrominoType = game.tetromino_bag[game.bag_index]
 	game.bag_index += 1
-	create_tetromino(game, new_ttype)
+	create_new_tetromino_by_type(game, new_ttype)
 }
 
-create_tetromino :: proc(game: ^Game, ttype: TetrominoType) {
+spawn_next_tetromino :: proc(game: ^Game) {
+	game.current_tetromino = game.next_tetromino
+	game.has_active_tetromino = true
+	generate_random_tetromino(game)
+}
+
+create_new_tetromino_by_type :: proc(game: ^Game, ttype: TetrominoType) {
 	t: Tetromino
 	switch ttype {
 	case .I:
@@ -146,7 +152,6 @@ create_tetromino :: proc(game: ^Game, ttype: TetrominoType) {
 	t.position = {GRID_WIDTH / 2, 0}
 	t.type = ttype
 	t.state = .Spawn
-	game.has_active_tetromino = true
 	game.next_tetromino = t
 }
 
@@ -248,6 +253,7 @@ rotate_tetromino :: proc(game: ^Game, clockwise: bool) {
 lock_tetromino :: proc(game: ^Game) {
 	tetromino_to_grid(game)
 	check_and_clean_lines(game)
+	spawn_next_tetromino(game)
 	game.fall_timer = 0
 }
 
