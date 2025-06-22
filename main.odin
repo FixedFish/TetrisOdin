@@ -40,7 +40,8 @@ main :: proc() {
 		rl.BeginTextureMode(ui_tex)
 		rl.ClearBackground(rl.MAROON)
 		draw_score(&game)
-		draw_next_tetromino(&game)
+		draw_ui_grid(&game)
+		draw_ui_tetromino(&game)
 		rl.EndTextureMode()
 
 		rl.BeginDrawing()

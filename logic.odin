@@ -13,6 +13,7 @@ FALL_INTERVAL: f32 = 0.5
 
 Game :: struct {
 	grid:                 [GRID_WIDTH][GRID_HEIGHT]GridCell,
+	grid_ui:              [4][4]GridCell,
 	has_active_tetromino: bool,
 	current_tetromino:    Tetromino,
 	next_tetromino:       Tetromino,
