@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import rl "vendor:raylib"
 
 /* GameTex Renderer */
@@ -44,4 +45,8 @@ draw_score :: proc(game: ^Game) {
 	score := game.current_score
 	text := rl.TextFormat("Score: %d", score)
 	rl.DrawText(text, 15, 15, 25, rl.BLACK)
+}
+
+draw_next_tetromino :: proc(game: ^Game) {
+	fmt.println(game.next_tetromino.type)
 }
