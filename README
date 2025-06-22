@@ -7,10 +7,12 @@ W - rotate clockwise
 S - rotate counterclockwise
 R - restart
 
-Implemented:
+Features:
 1. Super Rotated System
 2. UI with next tetromino preview
 
 TODO:
 1. QOL
 2. UI Refactoring (especially next tetromino preview)
+3. Piece hold
+4. Lock Delay
