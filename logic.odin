@@ -19,6 +19,7 @@ Game :: struct {
 	tetromino_bag:        [7]TetrominoType,
 	bag_index:            i32,
 	fall_timer:           f32,
+	current_score:        i32,
 }
 
 GameState :: struct {
@@ -173,8 +174,7 @@ tetromino_fall :: proc(game: ^Game, delta: f32) {
 	if can_move(game, 0, 1) {
 		game.current_tetromino.position.y += 1
 	} else {
-		tetromino_to_grid(game)
-		check_and_clean_lines(game)
+		lock_tetromino(game)
 	}
 }
 
@@ -186,7 +186,7 @@ rotate_tetromino :: proc(game: ^Game, clockwise: bool) {
 	kick_index: i32
 
 	if clockwise {
-		to_state = TetrominoState(int(from_state) % 4)
+		to_state = TetrominoState((int(from_state) + 1) % 4)
 
 		switch from_state {
 		case .Spawn:
@@ -199,7 +199,7 @@ rotate_tetromino :: proc(game: ^Game, clockwise: bool) {
 			kick_index = 4
 		}
 	} else {
-		to_state = TetrominoState(int(from_state) % 4)
+		to_state = TetrominoState((int(from_state) - 1) % 4)
 		switch from_state {
 		case .Spawn:
 			kick_index = 7
@@ -248,6 +248,18 @@ rotate_tetromino :: proc(game: ^Game, clockwise: bool) {
 	}
 }
 
+lock_tetromino :: proc(game: ^Game) {
+	tetromino_to_grid(game)
+	check_and_clean_lines(game)
+	game.fall_timer = 0
+}
+
+hard_drop_tetromino :: proc(game: ^Game) {
+	drop_pos := compute_drop_pos(game)
+	game.current_tetromino.position = drop_pos
+	lock_tetromino(game)
+}
+
 /* Input logic */
 // TODO: Refactor needed
 handle_input :: proc(game: ^Game) {
@@ -266,6 +278,9 @@ handle_input :: proc(game: ^Game) {
 	}
 	if rl.IsKeyPressed(rl.KeyboardKey.S) {
 		rotate_tetromino(game, false)
+	}
+	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
+		hard_drop_tetromino(game)
 	}
 }
 
@@ -301,6 +316,20 @@ is_valid_state :: proc(game: ^Game, t: Tetromino) -> bool {
 	return true
 }
 
+compute_drop_pos :: proc(game: ^Game) -> Vector2i {
+	ghost_t: Tetromino = game.current_tetromino
+	for {
+		test_ghost := ghost_t
+		test_ghost.position.y += 1
+
+		if !is_valid_state(game, test_ghost) {
+			break
+		}
+		ghost_t.position.y += 1
+	}
+	return ghost_t.position
+}
+
 check_and_clean_lines :: proc(game: ^Game) {
 	write_y := GRID_HEIGHT - 1
 	for read_y := GRID_HEIGHT - 1; read_y >= 0; read_y -= 1 {
@@ -313,6 +342,7 @@ check_and_clean_lines :: proc(game: ^Game) {
 	}
 	for y := write_y; y >= 0; y -= 1 {
 		clean_line(game, y)
+		game.current_score += 100
 	}
 }
 
