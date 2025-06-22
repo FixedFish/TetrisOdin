@@ -8,8 +8,9 @@ S - rotate counterclockwise
 R - restart
 
 Implemented:
-Super Rotated System
+1. Super Rotated System
+2. UI with next tetromino preview
 
 TODO:
-1. Score System
-2. Death
+1. QOL
+2. UI Refactoring (especially next tetromino preview)
